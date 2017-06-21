@@ -28,7 +28,6 @@ module Main where
 import Data.Maybe (catMaybes)
 import Control.Monad (void, filterM, unless)
 import Control.Arrow ((<<<), (&&&), (***))
-import System.Environment (getArgs)
 
 -- containers:
 import Data.IntMap (IntMap, fromList, elems, intersectionWith)
@@ -158,7 +157,7 @@ listFs dir = fmap (dir </>) <$> listDirectory dir
 
 -- | Read list of new filenames from a file.
 fileFs :: FilePath -> IO [FilePath]
-fileFs file = branch listFs readFs <$> doesFileExist file >>= ($ file)
+fileFs file = branch readFs listFs <$> doesFileExist file >>= ($ file)
 
 -- | Read list of new filenames from STDIN.
 stdinFs :: IO [FilePath]
