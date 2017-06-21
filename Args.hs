@@ -16,24 +16,28 @@
  - Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  -}
 
+-- | Parses command line arguments.
 module Args where
 
 --------------------------------------------------------------------------------
 -- Imports:
 --------------------------------------------------------------------------------
 
+-- base:
 import Control.Applicative
   ( (<|>) )
 
+import qualified Data.Semigroup as S
+
+-- optparse-applicative:
 import Options.Applicative
   ( Parser, ParserInfo, execParser, info, progDescDoc, headerDoc, fullDesc
   , helper, strArgument, switch, flag', long, short, help, metavar )
 
+-- ansi-wl-pprint:
 import Text.PrettyPrint.ANSI.Leijen
   ( Doc, text, colon, dot, comma, hardline
   , (<>), (</>), (<+>), (<$$>) )
-
-import qualified Data.Semigroup as S
 
 --------------------------------------------------------------------------------
 -- Help texts:
@@ -41,7 +45,7 @@ import qualified Data.Semigroup as S
 
 argHeader :: Doc
 argHeader = text "repisodes, a program for renaming files by episode name."
-       <$$> text "Copyright, 2016, Mazdak Farrokhzad"
+       <$$> text "Copyright, 2017, Mazdak Farrokhzad"
        <$$> text "Distributed under GPL2 or any later version."
 
 argPDesc :: Doc
@@ -67,7 +71,13 @@ argPDesc =
 -- Data types:
 --------------------------------------------------------------------------------
 
-data DstInfo = File { dstFP :: FilePath } | STDIN | Interactive
+-- | Information about how to retrieve the new filenames.
+data DstInfo
+  = File
+    { dstFP :: FilePath -- ^ Path to a file with names or a directory to ls.
+    }
+  | STDIN               -- ^ The new names are in STDIN.
+  | Interactive         -- ^ The user will provide names interactively.
   deriving (Eq, Ord, Show)
 
 -- | The command line arguments.
@@ -86,27 +96,28 @@ data CLIArgs = CLIArgs
 (<.>) :: S.Semigroup a => a -> a -> a
 (<.>) = (S.<>)
 
+-- | Argument parser (switch) for dry runs.
 argDry :: Parser Bool
 argDry =  switch
        $  long  "dry"
       <.> short 'd'
       <.> help  "If used, a dry run will happen. No files are renamed."
 
+-- | Positional argument parser for directory to rename files of.
 argSrc :: Parser FilePath
 argSrc =  strArgument
        $  metavar "RENAME_DIRECTORY"
       <.> help "The directory with files that will be renamed."
 
-argDst :: Parser DstInfo
-argDst =  File
+-- | Positional argument parser for directory to ls or file with new names.
+argDstPos :: Parser DstInfo
+argDstPos =  File
       <$> strArgument
        (  metavar "SOURCE_DIRECTORY"
       <.> help "The directory with new filenames to use for renaming."
        )
 
-argStdin :: Parser DstInfo
-argStdin = pure STDIN
-
+-- | Flag (-i / --interactive) for providing file names interactively.
 argInter :: Parser DstInfo
 argInter = flag' Interactive $
           long  "interactive"
@@ -115,12 +126,19 @@ argInter = flag' Interactive $
                [ "Interactive mode, when used, enter each file name on a line,"
                , "or an empty line to stop." ] )
 
-argAll :: Parser CLIArgs
-argAll =  CLIArgs
-      <$> argDry
-      <*> argSrc
-      <*> (argDst <|> argInter <|> argStdin)
+-- | Argument parser that always succeeds with STDIN as method for new names.
+argStdin :: Parser DstInfo
+argStdin = pure STDIN
 
+-- | All the ways to parse ways to get new filenames.
+argDst :: Parser DstInfo
+argDst = argInter <|> argDstPos <|> argStdin
+
+-- | Combined parser.
+argAll :: Parser CLIArgs
+argAll = CLIArgs <$> argDry <*> argSrc <*> argDst
+
+-- | Combined parser, help message, etc.
 argParser :: ParserInfo CLIArgs
 argParser =  info (helper <*> argAll) $
              fullDesc
@@ -131,5 +149,6 @@ argParser =  info (helper <*> argAll) $
 -- Interface for Main:
 --------------------------------------------------------------------------------
 
+-- | Fetches CLI arguments from passed arguments to program (getArgs).
 compArgs :: IO CLIArgs
 compArgs = execParser argParser
