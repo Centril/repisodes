@@ -1,6 +1,6 @@
 name:         repisodes
 category:     Renaming
-version:      0.1.0.0
+version:      0.1.1.0
 cabal-version: >=1.10
 synopsis:     Batch renaming of tv-episode filenames.
 
