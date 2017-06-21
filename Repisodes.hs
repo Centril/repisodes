@@ -29,6 +29,9 @@ import Data.Maybe (catMaybes)
 import Control.Monad (void, filterM, unless)
 import Control.Arrow ((<<<), (&&&), (***))
 
+-- deepseq:
+import Control.DeepSeq (NFData, force)
+
 -- containers:
 import Data.IntMap (IntMap, fromList, elems, intersectionWith)
 
@@ -49,7 +52,7 @@ import Args (CLIArgs (..), DstInfo (..), compArgs)
 -- General utilities:
 --------------------------------------------------------------------------------
 
--- | Composition of a unary operator with a binary.
+-- | Composition of a unary operator with a binary operator.
 -- f .: g = λ x y. f(g(x, y))
 (.:) :: (c -> d) -> (a -> b -> c) -> a -> b -> d
 (.:) = (.) . (.)
@@ -62,10 +65,10 @@ branch a b c = if c then a else b
 gobbleSnd :: Functor f => (f a, b) -> f (a, b)
 gobbleSnd (m, b) = (, b) <$> m
 
--- | Wraps a lazy /IO/ computation without arguments and forces its contents.
-force :: IO sa -> IO sa
-force mx = do !x <- mx; x `seq` return x
-{-# INLINE force #-}
+-- | Forces the result of a monadic computation to normal form (NF).
+mforce :: (Monad m, NFData a) => m a -> m a
+mforce = fmap force
+{-# INLINE mforce #-}
 
 --------------------------------------------------------------------------------
 -- Parsing episodes:
@@ -113,13 +116,17 @@ newName (src, dst) = (src, takeDirectory src </> takeFileName dst)
 -- Terminal utilities:
 --------------------------------------------------------------------------------
 
--- | Output a newline.
+-- | Prints a newline.
 nl :: IO ()
 nl = putStrLn ""
 
+-- | Prints a separator line.
+sepline :: IO ()
+sepline = putStrLn $ replicate 80 '-'
+
 -- | Print out a header.
 paragraph :: [String] -> IO ()
-paragraph = (nl >>) . (>> (putStrLn $ replicate 80 '-')) . putStrLn . unwords
+paragraph = (nl >>) . (>> sepline) . putStrLn . unwords
 
 -- | Print out each string on its own line.
 infos :: [String] -> IO ()
@@ -140,9 +147,12 @@ infoFs file fs = do
 -- Reading list of new filenames:
 --------------------------------------------------------------------------------
 
+nonEmpty :: [a] -> Bool
+nonEmpty = not . null
+
 -- | Read contents of the string and split into non-empty lines.
 getFs :: IO String -> IO [FilePath]
-getFs = fmap (filter (not . null) . lines) . force
+getFs = fmap (filter nonEmpty . lines) . mforce
 
 -- | Reads a file and splits the lines in it.
 readFs :: FilePath -> IO [FilePath]
@@ -167,7 +177,7 @@ stdinFs = getFs getContents
 interFs :: IO [FilePath]
 interFs = do
   paragraph ["Reading interactively, enter blank line to finish."] >> nl
-  takeWhile (not . null) . lines <$> getContents
+  takeWhile nonEmpty . lines <$> getContents
 
 -- | Compute the list of new names.
 getNewNames :: DstInfo -> IO [FilePath]
@@ -200,9 +210,9 @@ renames pairs = do
 -- | Setup for progDry by getting list of from => to filenames to rename.
 setup :: FilePath -> DstInfo -> IO [(FilePath, FilePath)]
 setup src dst = do
-  srcFs     <- listFs src
-  dstFs     <- getNewNames dst
-  pairs     <- pairsOf srcFs dstFs
+  srcFs <- listFs src
+  dstFs <- getNewNames dst
+  pairs <- pairsOf srcFs dstFs
   renames pairs
 
 -- | Rename [from => to].

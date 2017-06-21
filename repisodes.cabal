@@ -20,12 +20,13 @@ executable repisodes
   main-is:          Repisodes.hs
   build-depends:
       base >=4.8 && < 5
-    , filepath >= 1.4
-    , directory >= 1.2
-    , containers == 0.5.7.1
-    , regex-applicative == 0.3.3
-    , optparse-applicative == 0.13.1.0
-    , ansi-wl-pprint == 0.6.7.3
+    , filepath >= 1.4 && < 2.0
+    , directory >= 1.2 && < 2.0
+    , containers >= 0.5.7.1 && < 0.6.0.0
+    , regex-applicative >= 0.3.3 && < 0.4.0
+    , optparse-applicative >= 0.13.1.0 && < 0.14.0.0
+    , ansi-wl-pprint >= 0.6.7.3 && < 0.7.0.0
+    , deepseq >= 1.1.0.0 && < 2.0.0.0
   other-modules: Args
   hs-source-dirs:   ./
   default-language: Haskell2010
